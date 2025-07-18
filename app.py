@@ -7,32 +7,27 @@ import google.generativeai as genai
 GOOGLE_API_KEY = "AIzaSyABcgB6_ekXpU1FffEt9ANh2fLEMWRbLu8"
 genai.configure(api_key=GOOGLE_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-pro")
-
-st.set_page_config(page_title="Business Card Reader", layout="centered")
 st.title("📇 Business Card Reader with Gemini AI")
 
-uploaded_image = st.file_uploader("Upload a Business Card Image", type=["jpg", "jpeg", "png"])
+uploaded_image = st.file_uploader("Upload Business Card", type=["png", "jpg", "jpeg"])
 
 if uploaded_image:
     image = Image.open(uploaded_image)
-    st.image(image, caption="Uploaded Business Card", use_column_width=True)
+    st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    with st.spinner("🔍 Extracting text from image..."):
+    with st.spinner("Extracting text..."):
         reader = easyocr.Reader(['en'], gpu=False)
-        result = reader.readtext(uploaded_image, detail=0)
-        extracted_text = "\n".join(result)
+        text = reader.readtext(uploaded_image, detail=0)
+        extracted_text = "\n".join(text)
 
-    st.success("✅ Text Extracted")
-    st.subheader("📄 Raw Extracted Text")
-    st.text_area("Text", extracted_text, height=200)
+    st.text_area("Extracted Text", extracted_text, height=200)
 
-    if st.button("🔍 Analyze with Gemini"):
-        with st.spinner("Thinking..."):
-            prompt = f"""Extract key information from the following business card text:
+    if st.button("Analyze with Gemini"):
+        prompt = f"""Extract key information from this business card text:
 
 {extracted_text}
 
-Return it in this format:
+Format:
 - Name:
 - Job Title:
 - Company:
@@ -40,6 +35,6 @@ Return it in this format:
 - Phone:
 - Address:
 """
-            response = model.generate_content(prompt)
-        st.success("✅ Gemini AI Result")
+        response = model.generate_content(prompt)
         st.markdown(response.text)
+
