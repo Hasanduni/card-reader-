@@ -1,40 +1,47 @@
 import streamlit as st
-from PIL import Image
-import easyocr
+import cv2
+import pytesseract
+import numpy as np
 import google.generativeai as genai
 
-# Set your Google API Key
+# ⚠️ WARNING: Hardcoding API keys is not secure for production. Use st.secrets in real deployments.
 GOOGLE_API_KEY = "AIzaSyABcgB6_ekXpU1FffEt9ANh2fLEMWRbLu8"
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-pro")
+model = genai.GenerativeModel("gemini-2.5-pro")
+
 st.title("📇 Business Card Reader with Gemini AI")
 
-uploaded_image = st.file_uploader("Upload Business Card", type=["png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
-if uploaded_image:
-    image = Image.open(uploaded_image)
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+if uploaded_file:
+    file_bytes = np.frombuffer(uploaded_file.read(), np.uint8)
+    image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    
+    if image is None:
+        st.error("Failed to load image.")
+    else:
+        st.image(image, caption="Uploaded Image", use_column_width=True)
+        
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        extracted_text = pytesseract.image_to_string(gray).strip()
+        
+        if not extracted_text:
+            st.warning("No text found in the image.")
+        else:
+            st.subheader("📄 Extracted Text")
+            st.text_area("OCR Text", extracted_text, height=200)
+            
+            if st.button("Generate Summary"):
+                with st.spinner("Summarizing with Gemini AI..."):
+                    prompt = f"""
+Summarize the following OCR-extracted content in detail as if you're writing for a university-level report. 
+Ensure the summary is at least 150 words, includes the main points, and is clear and structured.
 
-    with st.spinner("Extracting text..."):
-        reader = easyocr.Reader(['en'], gpu=False)
-        text = reader.readtext(uploaded_image, detail=0)
-        extracted_text = "\n".join(text)
-
-    st.text_area("Extracted Text", extracted_text, height=200)
-
-    if st.button("Analyze with Gemini"):
-        prompt = f"""Extract key information from this business card text:
-
-{extracted_text}
-
-Format:
-- Name:
-- Job Title:
-- Company:
-- Email:
-- Phone:
-- Address:
+\"\"\"{extracted_text}\"\"\"
 """
-        response = model.generate_content(prompt)
-        st.markdown(response.text)
-
+                    try:
+                        response = model.generate_content(prompt)
+                        st.subheader("📝 Gemini Summary")
+                        st.write(response.text)
+                    except Exception as e:
+                        st.error(f"Gemini API error: {e}")
