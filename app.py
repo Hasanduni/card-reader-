@@ -1,10 +1,9 @@
 import streamlit as st
-import cv2
-import pytesseract
 import numpy as np
+import cv2
+import easyocr
 import google.generativeai as genai
 
-# ⚠️ WARNING: Hardcoding API keys is not secure for production. Use st.secrets in real deployments.
 GOOGLE_API_KEY = "AIzaSyABcgB6_ekXpU1FffEt9ANh2fLEMWRbLu8"
 genai.configure(api_key=GOOGLE_API_KEY)
 model = genai.GenerativeModel("gemini-2.5-pro")
@@ -22,8 +21,9 @@ if uploaded_file:
     else:
         st.image(image, caption="Uploaded Image", use_column_width=True)
         
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        extracted_text = pytesseract.image_to_string(gray).strip()
+        reader = easyocr.Reader(['en'], gpu=False)
+        result = reader.readtext(image)
+        extracted_text = "\n".join([text for (_, text, _) in result]).strip()
         
         if not extracted_text:
             st.warning("No text found in the image.")
